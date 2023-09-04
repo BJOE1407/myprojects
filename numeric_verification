@@ -1,0 +1,22 @@
+  <input type="text" ID="txtNumero" onkeydown="return CheckNumeric();" />//html code
+
+
+
+//javascript
+function CheckNumeric() {
+
+    // Get ASCII value of key that user pressed
+
+    var key = window.event.keyCode;
+    // Was key that was pressed a numeric character (0-9)?
+
+    if (key > 47 && key < 58 || key == 8) {
+        return;
+    }
+
+    else {
+        alert("something is wrong");
+    }
+    // discard character
+
+}
