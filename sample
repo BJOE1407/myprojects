@@ -1,0 +1,1926 @@
+<% @LANGUAGE="VBScript" %>
+<% Option Explicit %>
+<!--#include file="smg_function.asp"-->	
+<%
+
+dim rs,rsList,rsListM,staSQL1,staSQL2
+dim str,msg,msginfo
+dim NoStaf,Nama,Pejabat,strPejabat,Jawatan,kodPej
+dim RefDateTime,i
+dim txtInput
+dim StaAdmin,StaFungsi
+dim strID
+dim strKomponen,strItem,strSubItem,strKeterangan,strJenPengajian,strProjekBaru,strNamaProjekDb
+dim txtNamaStaf,txtnostaf,txtNoSurat,strPeranan,strTkhSurat,strCatatan,strDokumen,strstatusdokE
+dim strDtSt,strDtExp,hidNoId
+dim stridProjek,strNamaProjek,strKodtabung,strKodNegara,strStatus,txtKodTab,strtxtKodTab
+dim hidAction,bilprojek,bilKodTabung,strbilprojek,strKataL
+dim strDataL,strDataB
+dim firstsubtitle,secondsubtitle,lblbtnprojekbaharu,lblbtnsimpan,lblbtnhapus,lblbtnreset
+dim strKodVot,strJenisProjek
+dim txtFeeStrt
+dim txtSem1,txtSem2,txtSem3,txtSem4,txtSem5,txtSem6,txtSem7,totalsum
+dim cmbkodvot
+dim lblbtnsubmit,lblbtncancel
+
+
+If session("BAHASA") = "BM" Then
+	firstsubtitle = "Maklumat Komponen"
+	secondsubtitle = "Maklumat Program Pesisir"
+	lblbtnprojekbaharu = "Projek Baharu"
+	lblbtnsimpan = "Simpan"
+	lblbtnhapus = "Hapus"
+	lblbtnreset = "Reset"
+	txtInput = "Pengiraan Kos"
+	txtFeeStrt = "Struktur Yuran"
+	lblbtnsubmit = "Hantar"
+	lblbtncancel = "Batal"
+
+else
+	firstsubtitle = "Component Information"
+	secondsubtitle = "Offshore Program Information"
+	lblbtnprojekbaharu = "New Project"
+	lblbtnsimpan = "Save"
+	lblbtnhapus = "Delete"
+	lblbtnreset = "Reset"
+	txtInput = "Cost Calculator"
+	txtFeeStrt = "Fee Structure"
+	lblbtnsubmit = "Submit"
+	lblbtncancel = "Cancel"
+END IF
+
+session("fungsi")="R"
+RefDateTime=ServerDate
+StaAdmin=request.QueryString("Pentadbir")
+StaFungsi=request.QueryString("Fungsi")
+
+msg = request.QueryString("msg")
+hidAction=request.form("hidAction")
+hidNoId=request.form("hidNoId")
+
+
+	cmbkodvot = request.Form("cmbKodVot")
+
+strKomponen         = request.Form("cmbKomponen")
+strItem             = request.Form("cmbItem")
+strSubItem          = request.Form("cmbSubItem")
+strKeterangan       = request.Form("cmbKeterangan")
+txtNoSurat            = request.Form("txtNoSurat")   
+strPeranan          = request.Form("cmbPeranan")
+strTkhSurat         = request.Form("txtTkhSurat")
+stridProjek         = request.Form("cmbKodPrjk")
+strbilprojek        = request.Form("txtKodProjk")
+strKodtabung        = request.Form("cmbKodTab")
+strtxtKodTab           = request.Form("txtKodTab")
+strNamaProjek        = request.Form("txtNamaProjk")
+strKodNegara    	= request.Form("cmbNgeraProjk")
+txtnostaf 			= request.Form("txtNostaf")
+txtNamaStaf			= request.Form("txtNamaStaf")
+strDtSt				= request.Form("txtDtSt")
+strDtExp			= request.Form("txtDtExp")
+strStatus		    = request.Form("hidStatus")
+hidAction       	= request.Form("hidAction")
+hidNoId				= request.Form("hidNoID")
+strJenPengajian		= request.Form("cmbJenProjek")
+strJenisProjek		= request.Form("cmbJenProjek")
+
+
+
+
+'NoStaf=Session("ssusrid")
+'if NoStaf = "00608" then
+'	'NoStaf = "02442"
+'	NoStaf = "01244"
+'end if
+'---DAPATKAN NAMA, PEJABAT DAN JAWATAN STAF YANG BUAT PERMOHONAN---
+'set rs = mydbePPTA("SELECT Nama,NoStaf,NPejabat,KodPejabat,JGiliran,Gelaran,Singkat from VPeribadi01 WHERE NoStaf = '"& NoStaf &"'",1)
+'if rs.eof = false then
+'	if rs("Gelaran") = "TIADA DILAPORKAN" Then
+'				Nama = rs("Nama")
+'	else
+'				Nama = rs("Gelaran") & " " & rs("Nama")
+'	end if
+'	
+'	Pejabat = rs("NPejabat") & "(" & rs("Singkat") & ")"
+'	Jawatan = rs("JGiliran")
+'    kodPej  = rs("KodPejabat")
+'else
+'  msg ="REKOD TIDAK WUJUD."
+'end if	
+'set rs = nothing
+
+if left(Cdb11,2) ="qa" then
+	staSQL2 = "SELECT * FROM dbPengambilan.dbo.SMG14_PROJEK " _
+			&" LEFT JOIN ["& Cdb11e &"].DbEPPTA.dbo.VPeribadi01 as a ON a.NoStaf = SMG14_PROJEK.SMG14_NOSTAF " _
+			&" LEFT JOIN ["& Cdb11e &"].DbEPPTA.dbo.EPPTA_PERANAN as c ON c.KOD = SMG14_PROJEK.SMG14_PERANAN " _
+			&" LEFT JOIN SMP_Geolocation as b ON b.CODE = SMG14_PROJEK.SMG14_KODNEGARA " 
+	
+	staSQL1 = "  SELECT *,b.ms01_nama,e.gelaran, case when  e.gelaran  ='TIADA DILAPORKAN' THEN b.MS01_Nama ELSE e.gelaran + ' ' + b.MS01_Nama  END AS  namaP  ,upper(c.NAME) as negara,d.peranan, case when smg14_status = 1 then 'AKTIF' when smg14_status = 0 then 'TIDAK AKTIF' ELSE '' END AS  StatusStaf " _
+			&"FROM dbPengambilan.dbo.SMG14_PROJEK  as a  " _
+			&"left join  ["& Cdb11e &"].dbstaf.dbo.ms01_peribadi as b on a.SMG14_NOSTAF =b.ms01_nostaf  " _
+			&"inner join  ["& Cdb11e &"].dbstaf.dbo.ms_gelaran as e on e.kodgelaran = b.ms01_gelaran " _
+			&"LEFT JOIN SMP_Geolocation as c ON c.CODE = a.SMG14_KODNEGARA   " _
+			&"LEFT JOIN  ["& Cdb11e &"].DbEPPTA.dbo.EPPTA_PERANAN as d ON d.KOD = a.SMG14_PERANAN  " _
+			&" order by a.smg14_kodprojek,d.peranan "
+else
+		staSQL2 = "SELECT * FROM dbPengambilan.dbo.SMG14_PROJEK " _
+			&" LEFT JOIN ["& Cdb11e &"].DbEPPTA.dbo.VPeribadi01 as a ON a.NoStaf = SMG14_PROJEK.SMG14_NOSTAF " _
+			&" LEFT JOIN ["& Cdb11e &"].DbEPPTA.dbo.EPPTA_PERANAN as c ON c.KOD = SMG14_PROJEK.SMG14_PERANAN " _
+			&" LEFT JOIN SMP_Geolocation as b ON b.CODE = SMG14_PROJEK.SMG14_KODNEGARA " 
+	
+	staSQL1 = "  SELECT *,b.ms01_nama,e.gelaran, case when  e.gelaran  ='TIADA DILAPORKAN' THEN b.MS01_Nama ELSE e.gelaran + ' ' + b.MS01_Nama  END AS  namaP  ,upper(c.NAME) as negara,d.peranan, case when smg14_status = 1 then 'AKTIF' when smg14_status = 0 then 'TIDAK AKTIF' ELSE '' END AS  StatusStaf " _  
+			&"FROM dbPengambilan.dbo.SMG14_PROJEK  as a  " _
+			&"left join  ["& Cdb11e &"].dbstaf.dbo.ms01_peribadi as b on a.SMG14_NOSTAF =b.ms01_nostaf  " _
+			&"inner join  ["& Cdb11e &"].dbstaf.dbo.ms_gelaran as e on e.kodgelaran = b.ms01_gelaran " _
+			&"LEFT JOIN SMP_Geolocation as c ON c.CODE = a.SMG14_KODNEGARA   " _
+			&"LEFT JOIN  ["& Cdb11e &"].DbEPPTA.dbo.EPPTA_PERANAN as d ON d.KOD = a.SMG14_PERANAN  " _
+			&" order by a.smg14_kodprojek,d.peranan "
+end if
+
+	'DAPATKAN ID UTK KOD YURAN
+
+	if hidAction ="Baru" then
+	set rs = dbku("select count(Tjana_KodYuran) + 1 as bilprojek from SMG_TJana_KodYuran",1)
+	if rs.eof = false then
+		bilprojek=AddZeros(rs("bilprojek"),4)
+		strtxtKodTab = "TJ"+bilprojek
+	end if
+	end if 
+
+	
+	
+
+'DAPATKAN id PROJEK JIKA DAFTAR BAHARU
+if hidAction ="Baru" then
+	set rs =dbKU("select count(smg14_idprojek) + 1 as bilprojek from dbpengambilan.dbo.smg14_projek",1)
+	if rs.eof =false then
+		bilprojek=AddZeros(rs("bilprojek"),5)
+		strbilprojek ="P"+bilprojek
+	end if
+end if
+
+	'response.write("hidAction = " & hidAction)
+	
+if hidAction ="Cari" and hidNoId <> "" then
+	Cari
+elseif hidAction ="Reset" then
+	Clearfield
+	hidAction=""
+elseif hidAction ="Simpan" and hidNoId <> "" then
+	SimpanKemaskini
+	Cari
+elseif hidAction ="Simpan" and hidNoId = "" then
+	Simpan
+elseif hidAction ="" then
+	CariProjek
+end if
+
+Sub CariProjek
+	set rsList = DBIntk("SELECT SMG14_IDPROJEK,SMG14_KODPROJEK, SMG14_KODTABUNG,smg14_kodnegara,SMG14_JENPENGAJIAN FROM SMG14_PROJEK " _
+					       &"WHERE SMG14_IDPROJEK = '"&stridProjek &"'  " ,3)
+	if rsList.eof =false then
+		strNamaProjek=rsList("smg14_idprojek")
+		strKodtabung=rsList("smg14_kodtabung")
+		strKodNegara=rsList("smg14_kodnegara")
+		strJenPengajian=rsList("SMG14_JENPENGAJIAN")
+	end if
+	set rsList=nothing
+end Sub
+
+'CARIAN DARIPADA LISTVIEW
+Sub Cari
+	strStatus=""
+	if left(Cdb11,2) ="qa" then
+		set rsList = mydbProd("SELECT *,b.ms01_nama,e.gelaran,  case when  e.gelaran  ='TIADA DILAPORKAN' THEN b.MS01_Nama ELSE e.gelaran + ' ' + b.MS01_Nama  END AS  namaP ,upper(c.NAME) as negara,d.peranan   " _
+							 &"FROM dbPengambilan.dbo.SMG14_PROJEK  as a  " _
+							 &"left join  ["& Cdb11 &"].dbstaf.dbo.ms01_peribadi as b on a.SMG14_NOSTAF =b.ms01_nostaf  " _
+							 &"inner join  ["& Cdb11 &"].dbstaf.dbo.ms_gelaran as e on e.kodgelaran = b.ms01_gelaran " _
+							 &"LEFT JOIN SMP_Geolocation as c ON c.CODE = a.SMG14_KODNEGARA   " _
+							 &"LEFT JOIN  ["& Cdb11 &"].DbEPPTA.dbo.EPPTA_PERANAN as d ON d.KOD = a.SMG14_PERANAN  " _
+							 &"where a.smg14_noid = '"& hidNoId &"' " _
+							 &" order by a.smg14_kodprojek,d.peranan",1)
+	else
+				set rsList = dbKU("SELECT *,b.ms01_nama,e.gelaran,  case when  e.gelaran  ='TIADA DILAPORKAN' THEN b.MS01_Nama ELSE e.gelaran + ' ' + b.MS01_Nama  END AS  namaP  ,upper(c.NAME) as negara,d.peranan   " _
+							 &"FROM dbPengambilan.dbo.SMG14_PROJEK  as a  " _
+							 &"left join  ["& Cdb11 &"].dbstaf.dbo.ms01_peribadi as b on a.SMG14_NOSTAF =b.ms01_nostaf  " _
+							 &"inner join  ["& Cdb11 &"].dbstaf.dbo.ms_gelaran as e on e.kodgelaran = b.ms01_gelaran " _
+							 &"LEFT JOIN SMP_Geolocation as c ON c.CODE = a.SMG14_KODNEGARA   " _
+							 &"LEFT JOIN  ["& Cdb11 &"].DbEPPTA.dbo.EPPTA_PERANAN as d ON d.KOD = a.SMG14_PERANAN  " _
+							 &"where a.smg14_noid = '"& hidNoId &"' " _
+							 &" order by a.smg14_kodprojek,d.peranan",1)
+	
+	end if
+	if rsList.eof =false then
+		strSubItem=rsList("smg14_katprojek")
+		txtNamaStaf =rsList("namaP")
+		txtNostaf =rsList("smg14_nostaf")
+		txtNoSurat =rsList("smg14_norujsurat")
+		strPeranan=rsList("smg14_peranan")
+		strKeterangan=rsList("smg14_keterangan")
+		strNamaProjek=rsList("smg14_idprojek")
+		stridProjek=rsList("smg14_idprojek")
+		strKodtabung=rsList("smg14_kodtabung")
+		strTkhSurat=formatdate(rsList("smg14_tkhsurat"))
+		strKodNegara=rsList("smg14_kodnegara")
+		strJenPengajian=rsList("SMG14_JENPENGAJIAN")
+		if rsList("smg14_status") = true then
+			strStatus= "1"
+		elseif rsList("smg14_status") = false then
+			strStatus= "0"
+		end if
+		strDtSt=formatdate(rsList("smg14_tkhmula"))
+		strDtExp=formatdate(rsList("smg14_tkhtamat"))
+	
+		if strKodtabung = "" then
+			strbilprojek =rsList("smg14_idProjek")
+			strNamaProjekDb=rsList("smg14_namaprojek")
+		end if
+		
+	end if
+	set rsList =nothing
+
+end sub
+
+'CLEAR INPUT
+Sub Clearfield 
+	strSubItem=""
+	txtNamaStaf =""
+	txtNostaf =""
+	txtNoSurat =""
+	strPeranan=""
+	strKeterangan=""
+	strNamaProjek=""
+	stridProjek=""
+	strKodtabung=""
+	strTkhSurat=""
+	strKodNegara=""
+	strStatus=""
+	strDtSt=""
+	strDtExp=""
+end sub
+
+sub Simpan
+
+	
+	'DAPARKAN NAMA PROJEK
+	set rs= dbKU("SELECT DISTINCT SMG14_NAMAPROJEK,SMG14_IDPROJEK FROM dbPengambilan.dbo.SMG14_PROJEK WHERE SMG14_IDPROJEK = '"& stridProjek &"'",1)
+	if rs.eof = false then
+		strNamaProjek = rs("SMG14_NAMAPROJEK")
+    end if
+    set rs = nothing
+	
+	'DAPATKAN KOD FAKULTI
+	set rs=dbKU("select top 1 case when ms08_JenPenempatan ='02' then  ms08_pejabatAsal else  ms08_pejabat end as fakulti from  ["& Cdb11 &"].dbstaf.dbo.ms08_penempatan " _
+				&"where ms01_nostaf ='"& txtNostaf &"'  order by tkhwujud desc ",1)
+	if rs.eof=false then
+		strPejabat = rs("fakulti")
+	end if
+	set rs=nothing
+	
+	strDataL=""
+	strDataB=strSubItem&"|"&strKeterangan&"|"& stridProjek&"|"&strKodtabung&"|"&strNamaProjek&"|"&txtNamaStaf &"|"&txtNostaf&"|"&strPeranan&"|"&txtNoSurat &"|"& strTkhSurat  &"|"& strStatus  &"|"& strNamaProjek  &"|"& strKodNegara  &"|"& formatdate(strDtSt)	 &"|"& formatdate(strDtExp)
+	'response.write("strbilprojek = " & strbilprojek)
+	
+	'if strbilprojek <> "" then
+	
+	'INSERT INTO SMG_TJana_ProjekDt (MS01_NoStaf, Tjana_Peranan,Tjana_NoRujSurat,Tjana_JenDok,Tjana_NamaFail,Tjana_TkhSurat,Tjana_TknMohon,Tjana_TkhLulus) VALUES ('02255','s05','ss1111','p','PROGRAM PESISIR DOKTOR FALSAFAH DI POLITEKNIK NEGERI JAKARTA (PNJ) INDONESIA','2018-08-13 00:00:00','2018-08-13 00:00:00','2018-08-13 12:23:00')
+
+	set rs = dbKU("SELECT MS01_NoStaf,Tjana_Peranan,Tjana_NoRujSurat,Tjana_JenDok,Tjana_NamaFail,Tjana_TkhSurat,Tjana_TknMohon,Tjana_TkhLulus FROM SMG_TJana_ProjekDt ",1)
+	
+		if rs.eof = true then 
+		rs.addnew	
+		rs("MS01_NoStaf") = txtNoStaf	
+		rs("Tjana_Peranan") = strPeranan
+		rs("Tjana_NoRujSurat") = txtNoSurat
+		rs("Tjana_JenDok") = strJenPengajian
+		rs("Tjana_NamaFail") = strNamaProjek
+		rs("Tjana_TkhSurat") = strTkhSurat
+		rs("Tjana_TknMohon") = savedate(strDtSt)	
+		rs("Tjana_TkhLulus") = savedate(strDtExp)
+		rs.update	
+		end if 
+		
+'end if 
+
+	'set rs = dbKU("SELECT MS01_NoStaf, Tjana_Peranan,Tjana_NoRujSurat,Tjana_JenDok,Tjana_NamaFail,Tjana_TkhSurat,Tjana_TknMohon,Tjana_TkhLulus FROM dbo.SMG_TJana_ProjekDt WHERE MS01_NoStaf = '"& txtNostaf&"'",3)
+		
+	
+	'set rs = dbKU("SELECT SMG14_IDPROJEK, SMG14_KODPROJEK, SMG14_KODTABUNG, SMG14_KATPROJEK, SMG14_KETERANGAN, SMG14_PERANAN, SMG14_NOSTAF, SMG14_FAKULTI, SMG14_NAMAPROJEK, " _
+						  ' &"SMG14_KODNEGARA, SMG14_NORUJSURAT, SMG14_TKHSURAT, SMG14_PASSWORD, SMG14_STATUS,  " _
+						  ' &"SMG14_JENPENGAJIAN, SMG14_TKHMULA, SMG14_TKHTAMAT, SMG14_IDPENGGUNA FROM dbPengambilan.dbo.SMG14_PROJEK " _
+						  ' &"WHERE SMG14_NOSTAF = '"& txtNostaf &"' AND SMG14_KODPROJEK = '"& strKodtabung &"' AND SMG14_IDPROJEK = '"&stridProjek &"' AND SMG14_PERANAN ='"& strPeranan& "' " ,3)
+
+
+			'if rs.eof = true then
+			'rs.addnew
+			'rs("SMG14_IDPROJEK") = strbilprojek
+			'rs("SMG14_KODPROJEK") = strKodtabung
+			'rs("SMG14_KODTABUNG") = strKodtabung
+			'rs("SMG14_KATPROJEK")=strSubItem
+			'rs("SMG14_KETERANGAN")=strKeterangan
+			'rs("SMG14_PERANAN")=strPeranan
+			'rs("SMG14_NOSTAF")=txtNoStaf
+			'rs("SMG14_FAKULTI")=strPejabat
+			'rs("SMG14_NAMAPROJEK")=strNamaProjek
+			'rs("SMG14_KODNEGARA")=strKodNegara
+			'rs("SMG14_NORUJSURAT") = txtNoSurat   
+			'rs("SMG14_TKHSURAT") = strTkhSurat  
+			'rs("SMG14_JENPENGAJIAN")=strJenPengajian
+			'if strStatus ="1" then
+			'rs("SMG14_STATUS") = 1		    
+			'elseif strStatus = "0" then
+				'rs("SMG14_STATUS") = 0	
+			'else 
+			'return false
+			'end if
+			'rs("SMG14_TKHMULA") = savedate(strDtSt)				
+		'	rs("SMG14_TKHTAMAT") = savedate(strDtExp)
+			'rs("SMG14_IDPENGGUNA") = kodpengguna
+			
+			'if strPeranan ="S09"  then
+				'rs("SMG14_PASSWORD")=	"dPd;"
+			'end if
+			
+			'rs.update
+
+
+
+
+
+
+			'BACA UNTUK DAPAT NO ID
+				
+			'set rsList = dbKU("SELECT SMG14_NOID, SMG14_IDPROJEK FROM dbPengambilan.dbo.SMG14_PROJEK " _
+						'   &"WHERE SMG14_NOSTAF = '"& txtNostaf &"' AND SMG14_KODPROJEK = '"& strKodtabung &"' AND SMG14_IDPROJEK = '"&stridProjek &"' AND SMG14_PERANAN ='"& strPeranan& "' " ,3)
+			'if rsList.eof =false then
+			'	strID = "NOID="& rsList("SMG14_NOID")&",IDProjek="& rsList("SMG14_IDPROJEK")
+		'	end if
+			'set rsList=nothing
+			
+		'	AuditLog 1, "SMG14_PROJEK", strID, strDataL, strDataB
+			
+			'if strPeranan ="S09"  then
+			'	call SendEmail(txtNostaf,stridProjek,strNamaProjek,strKodtabung)
+		'	end if
+		'end if
+	'else
+	
+		'set rs = dbKU("SELECT SMG14_IDPROJEK, SMG14_KODPROJEK, SMG14_KODTABUNG, SMG14_KATPROJEK, SMG14_KETERANGAN, SMG14_PERANAN, SMG14_NOSTAF, SMG14_FAKULTI, SMG14_NAMAPROJEK, " _
+						  ' &"SMG14_KODNEGARA, SMG14_NORUJSURAT, SMG14_TKHSURAT, SMG14_PASSWORD, SMG14_STATUS,  " _
+						  ' &"SMG14_JENPENGAJIAN, SMG14_TKHMULA, SMG14_TKHTAMAT, SMG14_IDPENGGUNA FROM dbPengambilan.dbo.SMG14_PROJEK " _
+						'   &"WHERE SMG14_NOSTAF = '"& txtNostaf &"' AND SMG14_KODPROJEK = '"& strKodtabung &"' AND SMG14_IDPROJEK = '"&stridProjek &"' AND SMG14_PERANAN ='"& strPeranan& "' " ,3)
+	'	if rs.eof = true then
+		'	rs.addnew
+		'	rs("SMG14_IDPROJEK") = stridProjek
+			'rs("SMG14_KODPROJEK") = strKodtabung
+			'rs("SMG14_KODTABUNG") = strKodtabung
+		'	rs("SMG14_KATPROJEK")=strSubItem	
+			'rs("SMG14_KETERANGAN")=strKeterangan	
+			'rs("SMG14_PERANAN")=strPeranan
+			'rs("SMG14_NOSTAF")=txtNoStaf	
+			'rs("SMG14_FAKULTI")=strPejabat	
+		'	rs("SMG14_NAMAPROJEK")=strNamaProjek	
+		'	rs("SMG14_KODNEGARA")=strKodNegara
+		'	rs("SMG14_NORUJSURAT") = txtNoSurat   
+		'	rs("SMG14_TKHSURAT") = strTkhSurat 	
+		'	rs("SMG14_JENPENGAJIAN")=strJenPengajian
+	
+		'	if strStatus ="1" then
+				'rs("SMG14_STATUS") = 1		    
+			'elseif strStatus = "0" then
+				'rs("SMG14_STATUS") = 0		    
+			'end if
+			'rs("SMG14_TKHMULA") = savedate(strDtSt)				
+			'rs("SMG14_TKHTAMAT") = savedate(strDtExp)
+			'rs("SMG14_IDPENGGUNA") = kodpengguna
+			
+			'if strPeranan ="S09"  then
+				'rs("SMG14_PASSWORD")=	"dPd;"
+			'end if
+			
+			'rs.update
+			
+			'BACA UNTUK DAPAT NO ID
+				
+			set rsList = dbKU("SELECT SMG14_NOID, SMG14_IDPROJEK FROM dbPengambilan.dbo.SMG14_PROJEK " _
+						   &"WHERE SMG14_NOSTAF = '"& txtNostaf &"' AND SMG14_KODPROJEK = '"& strKodtabung &"' AND SMG14_IDPROJEK = '"&stridProjek &"' AND SMG14_PERANAN ='"& strPeranan& "' " ,1)
+			if rsList.eof =false then
+				strID = "NOID="& rsList("SMG14_NOID")&",IDProjek="& rsList("SMG14_IDPROJEK")
+			end if
+			set rsList=nothing
+			
+			'AuditLog 1, "SMG14_PROJEK", strID, strDataL, strDataB
+			
+			if strPeranan ="S09"  then
+				call SendEmail(txtNostaf,strbilprojek,strNamaProjek,strKodtabung)
+			end if
+		set rs=nothing
+
+
+end sub
+
+Sub SimpanKemaskini
+	
+	'DAPARKAN NAMA PROJEK
+	if strbilprojek ="" then
+		set rs= dbKU("SELECT DISTINCT SMG14_NAMAPROJEK,SMG14_IDPROJEK FROM dbPengambilan.dbo.SMG14_PROJEK WHERE SMG14_IDPROJEK = '"& stridProjek &"'",1)
+	else
+			set rs= dbKU("SELECT DISTINCT SMG14_NAMAPROJEK,SMG14_IDPROJEK FROM dbPengambilan.dbo.SMG14_PROJEK WHERE SMG14_IDPROJEK = '"& strbilprojek &"'",1)
+	end if
+
+	if rs.eof = false then
+		strNamaProjek = rs("SMG14_NAMAPROJEK")
+	end if
+	set rs = nothing
+	
+	
+	'UPDATE NOSURAT/KODTABUNG/KODPROJEK/STATUS/TARIKHMULA/TARIKH TAMAT/NORUJUKANSURAT/TARIKH SURAT
+	set rs = dbKU("SELECT SMG14_IDPROJEK, SMG14_KODPROJEK, SMG14_NAMAPROJEK,SMG14_KODTABUNG,SMG14_KODNEGARA, SMG14_NORUJSURAT, SMG14_TKHSURAT, SMG14_STATUS,SMG14_TKHMULA,SMG14_TKHTAMAT,SMG14_TKHKEMASKINI,SMG14_IDKEMASKINI FROM dbPengambilan.dbo.SMG14_PROJEK WHERE SMG14_NOID = '"& hidNoId &"'" ,3)
+	if rs.eof = false then
+		strID = "NOID="& hidNoId&",IDProjek="& rs("SMG14_IDPROJEK")
+		strDataL=rs("SMG14_KODPROJEK") &"|"&rs("SMG14_KODTABUNG")&"|"&rs("SMG14_NORUJSURAT")&"|"&rs("SMG14_TKHSURAT")&"|"&rs("SMG14_STATUS")&"|"&rs("SMG14_NAMAPROJEK")&"|"&rs("SMG14_KODNEGARA")&"|"&formatdate(rs("SMG14_TKHMULA"))&"|"&formatdate(rs("SMG14_TKHTAMAT") = savedate(strDtExp))
+		strDataB= strKodtabung&"|"&strKodtabung &"|"&txtNoSurat &"|"& strTkhSurat  &"|"& strStatus  &"|"& strNamaProjek  &"|"& strKodNegara  &"|"& formatdate(strDtSt)	 &"|"& formatdate(strDtExp)
+		if strbilprojek ="" then
+			rs("SMG14_KODPROJEK") = strKodtabung
+			rs("SMG14_KODTABUNG") = strKodtabung
+		else
+			rs("SMG14_KODPROJEK") = txtKodTab
+			rs("SMG14_KODTABUNG") = txtKodTab
+		end if
+		rs("SMG14_NORUJSURAT") = txtNoSurat   
+		rs("SMG14_TKHSURAT") = strTkhSurat  
+		if strStatus ="1" then
+			rs("SMG14_STATUS") = 1		    
+		elseif strStatus = "0" then
+			rs("SMG14_STATUS") = 0		    
+		end if
+		rs("SMG14_NAMAPROJEK") = strNamaProjek        
+		rs("SMG14_KODNEGARA") = strKodNegara    	
+		rs("SMG14_TKHMULA") = savedate(strDtSt)				
+		rs("SMG14_TKHTAMAT") = savedate(strDtExp)
+		rs("SMG14_TKHKEMASKINI") =refdatetime
+		rs("SMG14_IDKEMASKINI") = kodpengguna
+		rs.update
+
+		'AuditLog 2, "SMG14_PROJEK", strID, strDataL, strDataB
+	end if
+end sub
+
+
+' Function For Audit Log
+Sub AuditLog(strLogStatus, strLogTable, strLogRecord, strDataLama, strDataBaru)
+	If strLogStatus = 2 AND strDataLama = strDataBaru Then
+	Else
+		sLogModul = 41	' AuditLog Module ID
+		If strLogStatus = 1 Then	' Add New Record Log Description
+			sLogDesc = "DB Insert - " &strLogTable& "=" &strLogRecord
+		Elseif strLogStatus = 2 Then	' Update Record Log Description
+			sLogDesc = "DB Update - " &strLogTable& "=" &strLogRecord
+		Elseif strLogStatus = 3 Then	' Delete Record Log Description
+			sLogDesc = "DB Delete - " &strLogTable& "=" &strLogRecord
+		End If
+		sLogLama = strDataLama	' Old Data
+		sLogBaru = strDataBaru	' New Data
+		sLogUsr = Session("ssusrid")		' User Info - UserID
+		sLogUsrName = Session("ssusrname")	' User Info - UserName
+		sLogUsrGrp = Session("ssusrgrp")	' User Info - UserGroup
+%>
+		<!--#include File="AdminLog.inc"-->	
+<%
+	End If
+End Sub
+
+
+'---------EMAIL--------------------
+function SendEmail(txtNostaf,stridProjek,strNamaProjek,strKodtabung)
+
+	dim emailP,namaP,subject1,body1,body2,body3,body
+	dim strFak,strID1,strJP
+	dim emailDekan, emailTDA, emailPP,emailPen
+	dim tem,a,b,x,bilMohon,NamaMohon
+	
+	
+	'DAPATKAN EMAIL sementara
+	dim rs2
+	set rs2 = DBstaf("SELECT EMAIL, JGILIRAN FROM VPERIBADI12 WHERE nostaf  = '"& txtNoStaf&"' AND (STATUS = 1)",1)
+	if rs2.eof = false then
+		emailPen=emailPen &";" & rs2("EMAIL")
+	end if
+	set rs2=nothing
+
+	emailPen=emailPen &";" &"adminsmps@utem.edu.my"
+	emailP=emailPen
+	
+	Subject1 =     "Modul Utiliti : Pendaftaran Ketua Projek Program Pesisir"   
+	Body1 =        "Assalamualaikum wrt. wbt. dan Salam Sejahtera,"   _
+	& vbnewline _
+    & vbnewline  & "Prof. / Prof. Madya/ Dr./ Tuan / Puan " _
+	& vbnewline _
+	& vbnewline  & "Pendaftaran Sebagai Ketua Projek Progam Pesisr Telah dilakukan.  "  _
+	& vbnewline  & "Ketua Projek bertanggungjawab untuk mendaftarkan Agen masing-masing di Portal Postgraduate Online Application,  "  _
+	& vbnewline _
+	& vbnewline  & "Berikut adalah maklumat Projek, LoginId dan Kataluluan :  "  _
+	& vbnewline  & "Nama Projek :  " & strNamaProjek _
+	& vbnewline  & "Kod Tabung  :  " & strKodtabung _
+	& vbnewline  & "User ID     :  "&  stridProjek _
+	& vbnewline  & "Katalaluan  :  123abc" _
+	& vbnewline _
+	& vbnewline  &"dan juga segala urusan Pendaftaran Pemohonan " _
+	& vbnewline  &"dengan saudara/saudari sebagai pelajar" _
+    & vbnewline _ 
+	&  vbnewline & "Sila Semak untuk proses selanjutnya di https://portal.utem.edu.my/postgraduate " 
+	
+	body = body1 _
+	& vbnewline _
+	& vbCrLf     &  "Makluman ini adalah secara automatik daripada Sistem Pembelajaran Sepanjang Hayat(SPSH). "  _
+	& vbcrlf & "Anda tidak perlu membalas email ini." 
+
+	'tem=myEmel(emailP, subject1, body)
+	
+end function
+
+
+
+
+%>
+<html>
+<head>
+<link rel="stylesheet" href="<%=Session("ssusrcsspage")%>" type="text/css">
+<link rel="stylesheet" href="default.css" type="text/css">		
+<link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+<script language="JavaScript" src="calendar.js"></script>
+<!--script language="javascript" src="misc.js"></script-->
+<script language="JavaScript">
+  var BilProjk;
+  var ArryProjk;																							   
+ //--LOAD Projek--	
+ 
+	   <%
+	   
+	     set rs=dbKU("SELECT distinct SMG14_KODPROJEK,SMG14_KODNEGARA,a.name,SMG14_NAMAPROJEK,SMG14_KODTABUNG FROM dbPengambilan.dbo.SMG14_PROJEK LEFT JOIN SMP_Geolocation as a ON a.CODE = SMG14_PROJEK.SMG14_KODNEGARA ",1)
+	   %>
+   
+	      BilProjk = <%= rs.RecordCount %>;
+	      ArryProjk = new Array(BilProjk);
+	         for (var i=1; i<=BilProjk; i++)
+		        ArryProjk[i] = new Array(5);
+	   <%
+	      i=1
+	          Do While Not rs.EOF
+		         Response.Write "ArryProjk[" & i & "][0] = """ & rs("SMG14_KODPROJEK") & """;"
+		         Response.Write "ArryProjk[" & i & "][1] = """ & rs("SMG14_KODNEGARA") & """;"
+				 Response.Write "ArryProjk[" & i & "][2] = """ & rs("Name") & """;"	
+				 Response.Write "ArryProjk[" & i & "][3] = """ & rs("SMG14_NAMAPROJEK") & """;"	
+				 Response.Write "ArryProjk[" & i & "][4] = """ & rs("SMG14_KODTABUNG") & """;"										
+		         i=i + 1
+		         rs.movenext
+	          loop
+	       Set rs = Nothing
+	   %>																									   
+	
+													
+													
+	var BilKomp;
+  	var ArryKomp;	
+  																						   
+ //--LOAD EPPTA item--	
+	   <%
+	     set rs=mydbePPTA("SELECT DISTINCT A.ID_KOMPONEN, C.ID_ITEM, D.ID_SUBITEM ,A.ID_SUBITEMDT, B.KOMPONEN, C.ITEM,D.SUBITEM,A.SUBITEMDT " _
+					  & " FROM EPPTA_4SUBITEMDT AS A INNER JOIN " _
+					  & " EPPTA_1KOMPONEN AS B ON A.ID_KOMPONEN = B.ID_KOMPONEN INNER JOIN " _
+					  & " EPPTA_2ITEM AS C ON B.ID_KOMPONEN = C.ID_KOMPONEN INNER JOIN " _
+					  & " EPPTA_3SUBITEM AS D ON A.ID_SUBITEM = D.ID_SUBITEM AND C.ID_ITEM = D.ID_ITEM " _
+					  & " WHERE (A.FRAME = N'SMPS') ORDER BY A.ID_KOMPONEN",1)
+	   %>
+   
+	      BilKomp = <%= rs.RecordCount %>;
+	      ArryKomp = new Array(BilKomp);
+	         for (var i=1; i<=BilKomp; i++)
+		        ArryKomp[i] = new Array(7);
+	   <%
+	      i=1
+	          Do While Not rs.EOF
+		         Response.Write "ArryKomp[" & i & "][0] = """ & rs("ID_KOMPONEN") & """;"
+		         Response.Write "ArryKomp[" & i & "][1] = """ & rs("ID_ITEM") & """;"
+				 Response.Write "ArryKomp[" & i & "][2] = """ & rs("ID_ITEM") & " - " &  trim(rs("ITEM")) & """;"	
+				 Response.Write "ArryKomp[" & i & "][3] = """ & rs("ID_SUBITEM") & """;"	
+				 Response.Write "ArryKomp[" & i & "][4] = """ & rs("ID_SUBITEM") & " - " & trim(rs("SUBITEM")) & """;"						
+				 Response.Write "ArryKomp[" & i & "][5] = """ & rs("ID_SUBITEMDT") & """;"
+				 Response.Write "ArryKomp[" & i & "][6] = """ & rs("ID_SUBITEMDT") & " - " & rs("SUBITEMDT") & """;"				  
+		         i=i + 1
+		         rs.movenext
+	          loop
+	       Set rs = Nothing
+	   %>													
+													
+													
+//Function utk Projek
+ function KodProj(){	
+ 	
+   document.epp_Mohon.submit();
+  //  var c = document.epp_Mohon.cmbKodPrjk;
+//	var d = document.epp_Mohon.cmbNamaProjk;
+//	//var e = document.frmsetup.cmbKodTab;	
+//    var txtLok;
+//	if (c.value != "") {
+//		KodProj1(c.value)																	  
+//		fnEmptyOpt(d);
+//		//fnEmptyOpt(e);											
+//		for (var i=1; i<=BilProjk; i++) {
+//													
+//			if (ArryProjk[i][0] == c.value) {
+//													
+//				txtLok = ArryProjk[i][3];
+//				fnAddOpt(d, ArryProjk[i][0], txtLok);
+//			}
+//		}
+//	}
+//	else {
+//		fnEmptyOpt(d);
+//		//fnEmptyOpt(e);											
+//	}
+//		
+	
+ }													
+	
+//Function utk Projek
+ function KodProj1(e){	
+   
+    var c = e;
+	var d = document.epp_Mohon.cmbKodTab;
+													
+    var txtLok;
+	if (e != "") {
+		 																	  
+		fnEmptyOpt(d);
+											
+		for (var i=1; i<=BilProjk; i++) {
+													
+			if (ArryProjk[i][0] == e) {
+													
+				txtLok = ArryProjk[i][4];
+				fnAddOpt(d, ArryProjk[i][4], txtLok);
+			}
+		}
+	}
+	else {
+		fnEmptyOpt(d);
+													
+	}
+ }														
+												
+													
+//Function utk Projek
+ function ProjekN(){	
+													
+    var c = document.epp_Mohon.cmbNamaProjk;
+	var d = document.epp_Mohon.cmbNgeraProjk;
+    var txtLok;
+	if (c.value != "") {
+		 																	  
+		fnEmptyOpt(d);
+		for (var i=1; i<=BilProjk; i++) {
+													
+			if (ArryProjk[i][0] == c.value) {
+													
+				txtLok = ArryProjk[i][2];
+				fnAddOpt(d, ArryProjk[i][1], txtLok);
+			}
+		}
+	}
+	else {
+		fnEmptyOpt(d);
+	}
+ }
+	
+function checkKodTb(){
+		if (document.epp_Mohon.cmbKodPrjk.value == "") {
+                alert("Sila Pilih Kod Project\nPlease Choose Project Code");
+                document.epp_Mohon.cmbKodPrjk.focus();
+                return false;
+     }												
+}
+													
+													
+function CheckProject(){
+												  
+	if (document.epp_Mohon.cmbKeterangan.value== "K03040102" || document.epp_Mohon.cmbKeterangan.value == "K03040202"){
+	    if (document.epp_Mohon.txtNamaProjk.value == "") {
+                alert("Sila Masukkan Nama Project\nPlease Choose Project Name");
+                document.epp_Mohon.txtNamaProjk.focus();
+                return false;
+     }
+		}
+	else {										  
+		if (document.epp_Mohon.cmbNamaProjk.value == "") {
+                alert("Sila Pilih Nama Project\nPlease Choose Project Name");
+                document.epp_Mohon.cmbNamaProjk.focus();
+                return false;
+		}
+
+
+  }
+}													
+											
+
+function CheckKodP(){	
+  
+	if (document.epp_Mohon.cmbKodPrjk.value == "") {
+                alert("Sila Pilih Kod Project\nPlease Choose Project Code");
+                document.epp_Mohon.cmbKodPrjk.focus();
+                return false;
+     }
+ }
+													
+												
+
+ function PaparInfo1(InfoInd, id) 
+ {    
+	document.epp_Mohon.hidNoId.value = document.getElementById(id).rows[InfoInd-1].cells[6].innerHTML;	
+	document.epp_Mohon.hidAction.value ="Cari";
+	document.epp_Mohon.submit();
+					  
+ }		
+	
+
+							  
+function ViewFile(a,b){
+	
+	//var path = "https://portal.utem.edu.my/iSPSH/UpLoadFile/ePPTA/" + a.trim() + "/"+ b ;
+	var path = "qa.portal.utem.edu.my/iSPSH/UpLoadFile/ePPTA/" + a.trim() + "/"+ b ;
+    window.open(path,'determined','toolbar=no,location=no,directories=no,status=no,menubar=no,scrollbars=yes,resizable=yes,width=1000,height=750,top=300,left=170');
+	return true;
+	}	
+
+											
+													
+function chgKomponen()
+	{
+		document.epp_Mohon.cmbKeterangan.value="";
+		document.epp_Mohon.cmbSubItem.value="";
+		document.epp_Mohon.submit();
+	}
+	
+function chgItem()
+	{
+		
+		document.epp_Mohon.cmbSubItem.value="";
+		document.epp_Mohon.submit();
+	}
+
+function chgSubItem()
+	{
+		//alert("chgsubitem")
+		//document.epp_Mohon.submit();
+		document.epp_Mohon.submit();
+	}
+
+
+function chgKeterangan()
+	{
+																									   
+		if (document.epp_Mohon.cmbKeterangan.value== "K03060102" || document.epp_Mohon.cmbKeterangan.value == "K03060202"){
+			document.epp_Mohon.cmbNamaProjk.style.display = "none";	
+			document.epp_Mohon.txtNamaProjk.style.display = "inline";
+			document.epp_Mohon.cmbKodPrjk.style.display	= "none";	
+			document.epp_Mohon.txtKodProjk.style.display = "inline";
+			document.epp_Mohon.cmbKodTab.style.display = "none";
+			document.epp_Mohon.txtKodTab.style.display = "inline";										
+			document.getElementById("HidKL").style.display = "";
+	        document.getElementById("HidKL1").style.display = "";
+	        document.getElementById("HidKL2").style.display = "";
+		}
+		else{
+			document.epp_Mohon.cmbNamaProjk.style.display = "inline";	
+			document.epp_Mohon.txtNamaProjk.style.display = "none";															
+			document.epp_Mohon.cmbKodPrjk.style.display	= "inline";
+			document.epp_Mohon.txtKodProjk.style.display = "none";
+			document.epp_Mohon.cmbKodTab.style.display = "inline";
+			document.epp_Mohon.txtKodTab.style.display = "none";
+			document.getElementById("HidKL").style.display = "none";
+	        document.getElementById("HidKL1").style.display = "none";
+	        document.getElementById("HidKL2").style.display = "none";											
+													
+		}																							   
+		
+	}
+																									   
+function Simpan()
+	{
+		
+		var strNamaProjek ='<%=strNamaProjekDb%>';
+	
+		if (document.epp_Mohon.cmbKomponen.value == "") 
+		{
+			alert("Sila Pilih Komponen\nPlease Choose Component");
+			document.epp_Mohon.cmbKomponen.focus();
+			return false;
+        }	
+																																	
+		if (document.epp_Mohon.cmbItem.value == "") {
+			alert("Sila Pilih Item\nPlease Choose Item");
+			document.epp_Mohon.cmbItem.focus();
+			return false;
+         }																															
+				
+		if (document.epp_Mohon.cmbSubItem.value == "") {
+			alert("Sila Pilih Sub Item\nPlease Choose Sub Item");
+			document.epp_Mohon.cmbSubItem.focus();
+			return false;
+	}
+    if (document.epp_Mohon.cmbJenProjek.value == "") {
+			alert("Sila Pilih Jenis Projek\nPlease Choose Project Type");
+        document.epp_Mohon.cmbJenProjek.focus();
+			return false
+		}																															
+			
+		if (document.epp_Mohon.cmbKeterangan.value == "") {
+                alert("Sila Pilih Keterangan\nPlease Choose Details");
+                document.epp_Mohon.cmbKeterangan.focus();
+                return false;
+            }																															
+			
+		if (document.epp_Mohon.txtNoStaf.value == "") {
+                alert("Sila Masukkan No Staf\nPlease Insert Staf No");
+                document.epp_Mohon.txtNamaStaf.focus();
+                return false;
+            }	
+																																	
+		if (document.epp_Mohon.txtNoSurat.value == "") {
+                alert("Sila Masukkan No Rujukan Surat\nPlease Insert No Letter Reference");
+                document.epp_Mohon.txtNoSurat.focus();
+                return false;
+            }																															
+				
+																																	
+		if (document.epp_Mohon.cmbPeranan.value == "") {
+                alert("Sila Pilih Peranan\nPlease Choose Role");
+                document.epp_Mohon.cmbPeranan.focus();
+                return false;
+            }	
+																																	
+		if (document.epp_Mohon.txtTkhSurat.value == "") {
+                alert("Sila Pilih Tarikh\nPlease Choose Date Letter");
+                document.epp_Mohon.txtTkhSurat.focus();
+                return false;
+            }
+	
+
+		if (document.epp_Mohon.hidAction.value== "Baru")
+		{
+           
+            if (document.epp_Mohon.cmbJenProjek.value == "") {
+                alert("Sila Pilih Jenis Projek\nPlease Choose Project Type ");
+                document.epp_Mohon.cmbJenProjek.focus();
+                return false;
+            }										
+			
+			if (document.epp_Mohon.txtNamaProjk.value == "") {
+                alert("Sila Masukkan Nama Projek\nPlease Insert Project Name");
+                document.epp_Mohon.txtNamaProjk.focus();
+                return false;
+            }	
+			
+		}
+		else
+		{
+			
+			if(strNamaProjek =="")
+			{
+				if (document.epp_Mohon.cmbKodPrjk.value == "")
+				{
+					alert("Sila Pilih Kod Projek\nPlease Choose Project Code");
+					document.epp_Mohon.cmbKodPrjk.focus();
+					return false;
+				}	
+			
+			//	if (document.epp_Mohon.cmbKodTab.value == "") 
+			//	{
+			//		alert("Sila Pilih Kod Yuran\nPlease Choose Fee Code");
+			//		document.epp_Mohon.cmbKodTab.focus();
+			//		return false;
+				//}										
+			
+				//if (document.epp_Mohon.cmbNamaProjk.value == "") 
+			//	{
+			//		alert("Sila Pilih Nama Projek\nPlease Choose Project Name");
+			//		document.epp_Mohon.cmbNamaProjk.focus();
+			//		return false;
+			//	}										
+			}
+			else
+			{
+				if (document.epp_Mohon.txtKodTab.value == "") 
+				{
+					alert("Sila Masukkan Kod Yuran\nPlease Key In Fee Code");
+					document.epp_Mohon.txtKodTab.focus();
+					return false;
+				}										
+			
+			}
+													
+		 }	
+										
+		if (document.epp_Mohon.cmbNgeraProjk.value == "") {
+                alert("Sila Pilih Negara Projek\nPlease Choose Project Country");
+                document.epp_Mohon.cmbNgeraProjk.focus();
+                return false;
+            }											
+	
+		if (document.epp_Mohon.txtDtSt.value == "") 
+		{
+			 alert("Sila Masukkan Tarikh Mula\nPlease Key In Start Date");
+                document.epp_Mohon.txtDtSt.focus();
+                return false;
+		}
+		
+		if (document.epp_Mohon.txtDtExp.value == "") 
+		{
+			 alert("Sila Masukkan Tarikh Tamat\nPlease Key In End Date");
+             document.epp_Mohon.txtDtExp.focus();
+             return false;
+		}
+		
+		if (document.epp_Mohon.radStatus[0].checked == true) 
+		{
+			document.epp_Mohon.hidStatus.value ="1";
+		}
+		else if (document.epp_Mohon.radStatus[1].checked == true) 
+		{
+			document.epp_Mohon.hidStatus.value ="0";
+		}
+		else
+		{
+			 alert("Sila Pilih Status\nPlease Choose Status");
+             document.epp_Mohon.radStatus[0].focus();
+             return false;
+		}
+		
+
+
+			
+//		if (document.epp_Mohon.cmbDokumen1.value == "") {
+//                alert("Sila Pilih Jenis Dokumen\nPlease Choose Type of Document");
+//                document.epp_Mohon.cmbDokumen1.focus();
+//                return false;
+//            }		
+//																																	
+//		if (document.getElementById("file1").value == "") {
+//                alert("Sila Muat Naik Dokumen Sokongan\nPlease Upload Support Document");
+//                document.epp_Mohon.file1.focus();
+//                return false;
+//            }																							   
+
+	
+	
+																									   
+		//document.epp_Mohon.action="epp_MrDaftarProjekSave.asp";		
+	    //document.getElementById("epp_Mohon").enctype = "multipart/form-data";
+	    //document.getElementById("epp_Mohon").encoding = "multipart/form-data";
+		document.epp_Mohon.hidAction.value="Simpan";
+		document.epp_Mohon.submit();
+		return true;
+	}																									   
+		
+																									   
+ function fnEmptyOpt(ObjX) {
+	
+	var iLen = ObjX.length;
+
+	ObjX.innerHTML = "";
+	var opt = document.createElement("option");
+	opt.text = "SILA PILIH / PLEASE CHOOSE"
+	opt.value = "";
+	ObjX.add(opt);
+	
+ }
+
+ function fnAddOpt(ObjX, strValue, strText) {
+	
+	var opt = document.createElement("option");
+	opt.text = strText;
+	opt.value = strValue;
+	ObjX.options.add(opt);
+
+	}		
+
+	function reset_value() {
+		document.epp_Mohon.txtSem1.value = "";
+		document.epp_Mohon.txtSem2.value = "";
+		document.epp_Mohon.txtSem3.value = "";
+        document.epp_Mohon.txtSem4.value = "";
+        document.epp_Mohon.txtSem5.value = "";
+		document.epp_Mohon.txtSem6.value = "";
+		document.epp_Mohon.txtSem7.value = "";
+    }
+
+	
+function Reset(tindakan){
+	
+	 if (tindakan =="1")
+	 {	document.epp_Mohon.cmbKeterangan.value ="";
+	 	document.epp_Mohon.cmbSubItem.value ="";
+	 	document.epp_Mohon.hidAction.value="Baru";	
+	 }
+	 else
+	 {	document.epp_Mohon.hidAction.value="Reset";	}
+
+	 document.epp_Mohon.submit();
+}	
+
+
+																									   
+function loadFrame (id)
+		{
+			if (document.epp_Mohon.cmbKeterangan.value == "")
+			{
+				return false;
+			}
+		
+		  var strid = id + '.asp';								
+			iframe.location.href=strid+ "?komponen="+ '<%=strKomponen%>' + "&item=" + '<%=strItem%>' + "&subitem=" + '<%=strSubItem%>' + "&keterangan=" + '<%=strKeterangan%>';			
+}
+
+function getStaff(a) 
+{
+	var nostaff1
+	//resetmsg();
+	if (a == 1){
+		
+		nostaff1 = document.epp_Mohon.txtNoStaf.value;
+		lname = document.epp_Mohon.txtNamaStaf;
+		lname = document.epp_Mohon.txtNostaf;
+		
+	}
+	
+
+
+	//parent.AryWinOpened[parent.AryWinOpenedLastIdx] = window.open ("mr_cariVivaPem.asp?Pem=" + a,"newwin","width=700,height=400,left=300,top=200");
+//	parent.AryWinOpened[parent.AryWinOpenedLastIdx].focus();
+//	parent.AryWinOpenedLastIdx = parent.AryWinOpenedLastIdx + 1;
+	
+	var param = {'Pem': a,'IdS': nostaff1};	
+	OpenWindowWithPost("cari_staff_eppta.asp", 
+	"width=700,height=400,left=250,top=200,resizable=no,scrollbars=no", 
+	"NewFile", param);
+}
+
+function OpenWindowWithPost(url, windowoption, name, params)
+{
+
+	var form = document.createElement("form");
+	form.setAttribute("method", "post");
+	form.setAttribute("action", url);
+	form.setAttribute("target", name);
+	
+	for (var i in params) {
+		if (params.hasOwnProperty(i)) {
+			var input = document.createElement('input');
+			input.type = 'text';
+			input.name = i;
+			input.value = params[i];
+			form.appendChild(input);
+		}
+	}
+	
+	document.body.appendChild(form);
+	
+	//note I am using a post.htm page since I did not want to make double request to the page 
+	//it might have some Page_Load call which might screw things up.
+	window.open("post.htm", name, windowoption);
+	
+	form.submit();
+	
+	document.body.removeChild(form);
+}	
+</script>
+<script language="JavaScript" src="calendar.js"></script>
+</head>
+<body class=body>
+<table class="title" width="100%" border="0" cellspacing="0" cellpadding="0">
+<tr>
+	<td>PENDAFTARAN PROGRAM PESISIR<br>
+    <i><font size="-1">OFFSHORE PROGRAM REGISTRATION</font></i></td>
+</tr>
+</table>
+<br>
+<form name="epp_Mohon"  id="epp_Mohon" method="post" action="epp_MrDaftarProjek.asp">
+<input type="hidden" id="hidAction" name="hidAction" value="" />
+	<input type="hidden" id="hidStatus" name="hidStatus" value="" >
+<strong><font class="subtitle"> Pendaftaran Projek<br><i> Project Registration</i></font></strong>
+<p>
+<table id="tblmain" width="100%" border="0" cellspacing="2" cellpadding="1">
+	<h5 style="background-color:#003399 ; color:white"><strong><%=firstsubtitle%></strong></h5>
+  <tr>
+    <td colspan="3">
+				<table id ="TableA" width="100%" border="0" cellspacing="2" cellpadding="1" class="labelfont">
+				<tr>
+					<td width="11%">Komponen<br/><i>Component</i></td>
+					<td width="1%">:</td>
+					<td width="88%"><select name="cmbKomponen" style="width:350px" onChange="return chgKomponen()"  >
+								<!--<option value="">Sila Pilih</option>-->
+								<%				
+									'strKomponen = "K02"
+									set rs=mydbePPTA("SELECT DISTINCT A.ID_KOMPONEN,  B.KOMPONEN " _
+										& " FROM  EPPTA_4SUBITEMDT AS A INNER JOIN " _
+										& " EPPTA_1KOMPONEN AS B ON A.ID_KOMPONEN = B.ID_KOMPONEN INNER JOIN " _
+										& " EPPTA_2ITEM AS C ON B.ID_KOMPONEN = C.ID_KOMPONEN INNER JOIN " _
+										& " EPPTA_3SUBITEM AS D ON A.ID_SUBITEM = D.ID_SUBITEM AND C.ID_ITEM = D.ID_ITEM " _
+										& " WHERE (A.ID_KOMPONEN = 'K03')" _
+										& " ORDER BY A.ID_KOMPONEN ",1)
+									While NOT rs.EOF
+										Response.Write("<option value=")
+										Response.Write(rs("ID_KOMPONEN"))
+										if rs("ID_KOMPONEN") = strKomponen then
+										response.Write(" ")
+										response.Write("selected")
+									end if
+										Response.Write(">")
+										Response.Write(rs("ID_KOMPONEN") & " - " & rs("KOMPONEN"))
+										Response.Write("</option>")
+										rs.MoveNext
+									Wend
+							%>
+							</select>
+					</td>
+				</tr>
+				<tr>
+					<td>Item</td>
+					<td>:</td>
+					<td><select name="cmbItem" style="width:500px" onChange="return chgItem()"  >
+								<!--<option value="">Sila Pilih</option>-->
+								<%
+									
+						            'strItem = "K0201"
+									set rs=mydbePPTA("SELECT DISTINCT A.ID_ITEM,  C.ITEM " _
+										& " FROM  EPPTA_4SUBITEMDT AS A INNER JOIN " _
+										& " EPPTA_1KOMPONEN AS B ON A.ID_KOMPONEN = B.ID_KOMPONEN INNER JOIN " _
+										& " EPPTA_2ITEM AS C ON B.ID_KOMPONEN = C.ID_KOMPONEN INNER JOIN " _
+										& " EPPTA_3SUBITEM AS D ON A.ID_SUBITEM = D.ID_SUBITEM AND C.ID_ITEM = D.ID_ITEM " _
+										& " WHERE  (A.SUMBER = N'SPSH')  AND A.ID_KOMPONEN = 'K03' " _
+										& " ORDER BY  A.ID_ITEM ",1)
+
+									While NOT rs.EOF
+										Response.Write("<option value=")
+										Response.Write(rs("ID_ITEM"))
+										if rs("ID_ITEM") = strItem then
+											response.Write(" ")
+											response.Write("selected")
+										end if
+										Response.Write(">")
+										Response.Write(rs("ID_ITEM") & " - " & rs("ITEM"))
+										Response.Write("</option>")
+										rs.MoveNext
+									Wend
+								  
+							%>
+							</select>
+					</td>
+				</tr>
+				<tr>
+					<td>Sub Item</td>
+					<td>:</td>
+					<td><select name="cmbSubItem" id="cmbSubItem" style="width:500px" onChange="return chgSubItem();"  >
+								<option value="">SILA PILIH / PLEASE CHOOSE</option>
+								<%
+									IF strItem <> "-" then
+						                    
+											set rs=mydbePPTA("SELECT  DISTINCT A.ID_SUBITEM,  D.SUBITEM " _
+												& " FROM     EPPTA_4SUBITEMDT AS A INNER JOIN " _
+												& "EPPTA_1KOMPONEN AS B ON A.ID_KOMPONEN = B.ID_KOMPONEN INNER JOIN " _
+												& "EPPTA_2ITEM AS C ON B.ID_KOMPONEN = C.ID_KOMPONEN INNER JOIN " _
+												& "EPPTA_3SUBITEM AS D ON A.ID_SUBITEM = D.ID_SUBITEM AND C.ID_ITEM = D.ID_ITEM " _
+												& "WHERE  A.ID_ITEM  ='K0306' ORDER BY A.ID_SUBITEM  ",1)
+											While NOT rs.EOF
+												Response.Write("<option value=")
+												Response.Write(rs("ID_SUBITEM"))
+												if rs("ID_SUBITEM") = strSubItem then
+													response.Write(" ")
+													response.Write("selected")
+												end if
+												Response.Write(">")
+												Response.Write(rs("ID_SUBITEM") & " - " & rs("SUBITEM"))
+												Response.Write("</option>")
+												rs.MoveNext
+											Wend
+										end if
+							%>
+							</select>					
+					</td>
+				</tr>
+				<tr>
+				  <td>Terperinci<br/>
+			      <i>Details</i></td>
+				  <td>&nbsp;</td>
+				  <td><select name="cmbKeterangan"  id="cmbKeterangan" style="width:350px" onChange="return chgKeterangan();"  >
+				    <option value="">SILA PILIH / PLEASE CHOOSE</option>
+				    <%
+								'IF strSubItem <> "-" then
+								set rs=mydbePPTA("SELECT ID_KOMPONEN, ID_ITEM, ID_SUBITEM, ID_SUBITEMDT, SUBITEMDT FROM EPPTA_4SUBITEMDT  "_ 
+								& " WHERE ID_SUBITEM ='" & strSubItem & "' and   ID_SUBITEMDT in('K03060101','K03060102','K03060103','K03060201','K03060202','K03060203') ",1)
+								While NOT rs.EOF
+									Response.Write("<option value=")
+									Response.Write(rs("ID_SUBITEMDT"))
+									if rs("ID_SUBITEMDT") = strKeterangan then
+										response.Write(" ")
+										response.Write("selected")
+									end if
+									Response.Write(">")
+									Response.Write(rs("ID_SUBITEMDT") & " - " & rs("SUBITEMDT"))
+									Response.Write("</option>")
+									rs.MoveNext
+								Wend
+								'End if
+						%>
+			      </select></td>
+				  </tr>
+				<tr>
+					<td>&nbsp;</td>
+					<td>:</td>
+					<td>&nbsp;</td>
+				</tr>
+			</table>			
+		</td>
+  </tr>	
+</table>
+<br>              
+<table id="tblmain" width="130%" border="0" cellspacing="2" cellpadding="1">
+	<h5 style="background-color:#003399; color:white"><strong><%=secondsubtitle %></strong></h5>
+	<tr>
+	  <td height="23">Nama Pensyarah<br/>
+      <i>Lecturer Name</i></td>
+	  <td class="auto-style1">:&nbsp;</td>
+	  <td class="auto-style3"><input class="textbox" type="text" name="txtNamaStaf" id="txtNamaStaf" style="width:350px" value="<%=txtNamaStaf%>" >
+      <img src="images/cari.gif" onClick="getStaff(1);" Title="Carian Pensyarah" width="15" height="15"> </td>
+	  <td>No Staf <br/>
+      <i>Staff No</i></td>
+	  <td>&nbsp;</td>
+	  <td class="auto-style4"><input class="textbox" type="text" name="txtNoStaf" id="txtNoStaf" style="width:50px" value="<%=txtNoStaf%>" ></td>
+    </tr>
+	<tr>
+        <td width="11%" height="23">No Rujukan Surat<br/><i>No. Letter Reference</i></td>
+        <td class="auto-style1">:</td>
+        <td class="auto-style3"><input class="textbox" type="text" name="txtNoSurat" id="txtNoSurat" style="width:200px" value="<%=txtNoSurat%>" maxlength="100" onkeypress='validate(event)'><input type="hidden" name="KodPejabat" id="KodPejabat"  value="<%=kodPej%>">
+       					<input type ="hidden" name="hidNoId" id="hidNoId" value="<%=hidNoId%>"></td>
+        <td width="13%">Peranan<br/><i>Role</i></td>
+        <td width="1%">:</td>
+        <td class="auto-style4"><select name="cmbPeranan" id="cmbPeranan" style="width:200px" onChange=""  >
+                <option value="">SILA PILIH / PLEASE CHOOSE</option>
+                <%													
+                    set rs=mydbePPTA("SELECT KOD, PERANAN FROM  EPPTA_PERANAN WHERE KOD IN ('S09','S05','S17')",1)
+                    While NOT rs.EOF
+                        Response.Write("<option value=")
+                        Response.Write(rs("KOD"))
+                        if rs("KOD") = strPeranan then
+                        response.Write(" ")
+                        response.Write("selected")
+                    end if
+                        Response.Write(">")
+                        Response.Write(rs("KOD") & " - " & rs("PERANAN"))
+                        Response.Write("</option>")
+                        rs.MoveNext
+                    Wend
+                    set rs = nothing
+            %>
+            </select></td>
+        </tr>
+        <tr>
+            <td width="11%">Tarikh Surat<br/><i>Date Letter </i></td>
+            <td class="auto-style1">:</td>
+            <td class="auto-style3"><input type="date" name="txtTkhSurat" id="txtTkhSurat" onFocus="javascript:vDateType='3'"  onKeyUp="DateFormat(this,this.value,event,false,'3')" onBlur="DateFormat(this,this.value,event,true,'3')" maxlength="10" value="<%=strTkhSurat%>" >
+				
+                   <!-- <a style="cursor:grab"><img src="" alt="Pilih Tarikh" value= "calendar" onClick='popUpCalendar(this,txtTkhSurat,-112)'  align="top" width="16" height="16" style="cursor: grab"></a>-->
+
+            </td>
+            <td width="13%"><!--Keterangan<br/><i>Description</i>--></td>
+            <td width="1%"><!--:--></td>
+            <td class="auto-style4"><!--<textarea name="txtCatatan" style="width:300px;" rows="3" onKeyPress="if (this.value.length >= 150) { return false; }"><%'=strCatatan%></textarea>--></td>
+            </tr>
+		
+			<!--<tr>
+                <td width="11%" height="18">Jenis Dokumen<br/><i>Type of Document</i>   </td>
+                <td width="1%">:</td>
+                <td><select name="cmbDokumen1" id="cmbDokumen1" style="width:200px" onChange=""  >
+                    <option value="">SILA PILIH / PLEASE CHOOSE</option>
+                    <%													
+                        set rs=mydbePPTA("SELECT KOD,DOKUMEN FROM EPPTA_JENISDOK",1)
+                        While NOT rs.EOF
+                            Response.Write("<option value=")
+                            Response.Write(rs("KOD"))
+                            if rs("KOD") = strDokumen then
+                            response.Write(" ")
+                            response.Write("selected")
+                        end if
+                            Response.Write(">")
+                            Response.Write(rs("KOD") & " - " & rs("DOKUMEN"))
+                            Response.Write("</option>")
+                            rs.MoveNext
+                        Wend
+                %>
+                </select></td>	-->
+                <!--<td width="13%" height="31">Muatnaik Dokumen Sokongan<br/><i>Upload Support Document</i>  </td>
+                <td width="1%">:</td>
+                <td ><input type="file" name="file1" id="file1" accept="application/pdf" style="width:300px">
+					<br /><a href="" id="FileUpload" ></a> <input type="hidden" name="FileAda" id="FileAda"  value=""></td>					
+			</tr>-->
+	
+			<tr>
+                <td width="11%" height="18">ID Projek<br/><i>ID Code</i>   </td>
+                <td class="auto-style1">:</td>
+                <td class="auto-style3">
+				<% if hidAction ="Baru"  and  strKodtabung ="" then %>
+	               <input class="textbox" type="text" name="txtKodProjk" id="txtKodProjk" value="<%=strbilprojek%>" maxlength="6" readonly>
+             
+				<%else%>
+                <select name="cmbKodPrjk" id="cmbKodPrjk" style="width:450px;display:inline;" onChange="return KodProj();">
+                    <option value="">SILA PILIH / PLEASE CHOOSE</option>
+                    <%' if strSubItem ="K030601" then											
+                        set rs=dbKU("SELECT DISTINCT SMG14_idPROJEK, SMG14_NAMAPROJEK,SMG14_KODPROJEK FROM dbPengambilan.dbo.SMG14_PROJEK WHERE SMG14_KODPROJEK IS NOT NULL order by  SMG14_KODPROJEK",1)
+                        While NOT rs.EOF
+                            Response.Write("<option value=")
+                            Response.Write(rs("SMG14_idPROJEK"))
+                            if rs("SMG14_idPROJEK") = stridprojek then
+                            	response.Write(" ")
+                            	response.Write("selected")
+                        	end if
+                            Response.Write(">")
+                            Response.Write(rs("SMG14_idPROJEK") & " - " & rs("SMG14_NAMAPROJEK") )
+                            Response.Write("</option>")
+                            rs.MoveNext
+                        Wend
+					'end if
+				end if
+                %>
+                </select></td>	
+                <td width="13%" height="31">Kod Yuran<br/><i>Fee Code</i>  </td>
+                <td width="1%">:</td>
+                <td class="auto-style4">
+                <%if hidAction ="Baru" or strKodtabung ="" then %>
+	                <input type="text" class="textbox" name="txtKodTab" id="txtKodTab" value="<%=strtxtKodTab%>" maxlength="100" readonly>
+                <%else %>
+					<select name="cmbKodTab" id="cmbKodTab" style="width:200px;" onclick="">
+                    <option value="">SILA PILIH / PLEASE CHOOSE</option>
+                    <%	'if strSubItem ="K030601" then													
+                        set rs=dbKU("SELECT DISTINCT SMG14_PERANAN,SMG14_NAMAPROJEK,SMG14_KODPROJEK,SMG14_KODTABUNG FROM dbPengambilan.dbo.SMG14_PROJEK WHERE SMG14_PERANAN='S09' AND SMG14_KODPROJEK IS NOT NULL order by SMG14_KODTABUNG",1)
+                        While NOT rs.EOF
+                            Response.Write("<option value=")
+                            Response.Write(rs("SMG14_KODTABUNG"))
+                            if rs("SMG14_KODTABUNG") = strKodtabung then
+                            response.Write(" ")
+                            response.Write("selected")
+                        end if
+                            Response.Write(">")
+                            Response.Write(rs("SMG14_KODTABUNG") )
+                            Response.Write("</option>")
+                            rs.MoveNext
+                        Wend
+					'end if
+					end if
+                %>
+                </select>
+				
+				</td>					
+			</tr>
+			<tr>
+			  <td height="18">Jenis Projek<br/>
+              <i>Type of Project</i></td>
+			  <td class="auto-style1">&nbsp;</td>
+			  <td class="auto-style3"><select name="cmbJenProjek"  id="cmbJenProjek" style="width:350px" >
+			    <option value="">SILA PILIH / PLEASE CHOOSE</option>
+
+					 <%
+							set rs= DBku("SELECT SMG_PROGRAM,SMG_KodProgram FROM SMG_PROGRAM",1)
+								while not rs.EOF 
+								response.write("<option value= ")
+								response.write(rs("SMG_PROGRAM"))
+							if rs("SMG_KodProgram") = strJenisProjek then 
+								response.write("")
+						' response.Write("Jenis Projek" & strJenisProjek)
+						' response.end()
+								response.write("selected")
+								end if 
+								response.write(">")
+								response.write(rs("SMG_PROGRAM"))
+								response.write("</option>")
+								rs.MoveNext
+
+								wend
+						%>
+		      </select></td>
+			  <td height="31">&nbsp;</td>
+			  <td>&nbsp;</td>
+			  <td class="auto-style4" >&nbsp;</td>
+    </tr>
+			<tr>
+                <td width="11%" height="18">Nama Projek<br/><i>Project Name</i>   </td>
+                <td class="auto-style1">:</td>
+                <td class="auto-style3">
+                	<% if hidAction ="Baru"  or strKodtabung ="" then %>
+                    	<input type="text" class="textbox" name="txtNamaProjk" id="txtNamaProjk"  value="<%=strNamaProjekDb%>" maxlength="200" style="width:450px">
+                     <%else%>
+					
+					<select name="cmbNamaProjk" style="width:450px;display:inline;" onChange="return ProjekN();"  onclick="return CheckKodP();"   >
+                    <option value="">SILA PILIH / PLEASE CHOOSE</option>
+                    <%													
+                        set rs=dbKU("SELECT DISTINCT SMG14_PERANAN,SMG14_NAMAPROJEK,SMG14_KODPROJEK FROM dbPengambilan.dbo.SMG14_PROJEK WHERE SMG14_PERANAN='S09'",1)
+                        While NOT rs.EOF
+                            Response.Write("<option value=")
+                            Response.Write(rs("SMG14_KODPROJEK"))
+                            if rs("SMG14_KODPROJEK") = strKodtabung then
+                            response.Write(" ")
+                            response.Write("selected")
+                        end if
+                            Response.Write(">")
+                            Response.Write(rs("SMG14_NAMAPROJEK") )
+                            Response.Write("</option>")
+                            rs.MoveNext
+                        Wend
+					end if
+                %>
+                </select></td>	
+                <td width="13%" height="31">Negara Projek<br/><i>Project Country</i>  </td>
+                <td width="1%">:</td>
+                <td class="auto-style4" ><select name="cmbNgeraProjk" style="width:200px;" onclick="return CheckProject();"  >
+                    <option value="">SILA PILIH / PLEASE CHOOSE</option>
+                    <%	'if strSubItem ="K030601" then													
+                        set rs=DBku("SELECT Code, UPPER(Name) as Name, ParentCode from SMP_geolocation WHERE  PARENTCODE in('100000000','200000000','300000000','400000000','500000000','600000000','700000000') order by name",1)
+                        While NOT rs.EOF
+                            Response.Write("<option value=")
+                            Response.Write(rs("Code"))
+                            if rs("Code") = strKodNegara then
+                            response.Write(" ")
+                            response.Write("selected")
+                        end if
+                            Response.Write(">")
+                            Response.Write(rs("Name") )
+                            Response.Write("</option>")
+                            rs.MoveNext
+                        Wend
+					'end if
+                %>
+                </select></td>					
+			</tr>
+	
+			<tr>
+      <td height="27">Tarikh Mula Projek<br>
+      <i><font size="-2">Project Start Date</font></i> </td>
+      <td class="auto-style1">:</td>
+      <td class="auto-style3">
+	  		<input type="date" name="txtDtSt" id="txtDtSt" style="width:120px;" value="<%=strDtSt%>" onFocus="javascript:vDateType='3'"; onKeyUp="DateFormat(this,this.value,event,false,'3')" onBlur="DateFormat(this,this.value,event,true,'3')" maxlength="10" >
+			<!--<i class="fa fa-calendar"></i>
+            <img src="calendar.gif" alt="Pilih Tarikh" value= "calendar" onClick='popUpCalendar(this,txtDtSt,-203)'  align="top" width="16" height="16" style="cursor: pointer"></td>  -->
+      <td>
+       Tarikh Tamat Projek<br>
+        <i><font size="-2">Project End Date</font></i></td>
+      <td height="27">&nbsp;</td>
+      <td class="auto-style4">:
+        <input type="date" name="txtDtExp" id="txtDtExp" style="width:120px;" value="<%=strDtExp%>" onFocus="javascript:vDateType='3'"; onKeyUp="DateFormat(this,this.value,event,false,'3')" onBlur="DateFormat(this,this.value,event,true,'3')" maxlength="10" >
+		  <!--<i class="fa fa-calendar"></i>
+        <img src="fa fa-calendar" alt="Pilih Tarikh" value= "calendar" onClick='popUpCalendar(this,txtDtExp,-203)' align="top" width="16" height="16" style="cursor: pointer">-->
+
+      </td>  
+    </tr>
+			<tr >
+                <td width="11%" height="18" id="HidKL" style="display: none;">Kata Laluan Projek<br/><i>Project Password</i>   </td>
+                <td id="HidKL1"  style="display: none;" class="auto-style1">:</td>
+                <td  id="HidKL2"  style="display: none;" class="auto-style3"><input type="password" name="txtKataL" id="txtKataL" style="width:200px" value="" maxlength="100"></td>	
+                <td width="13%" height="31">Status Ketua Projek<br>
+                <i><font size="-2">Project Leader Status</font></i></td>
+                <td width="1%"></td>
+                <td class="auto-style4" ><input class="blank" type="radio" name="radStatus" id="radStatus" <%if strStatus = "1" then%>checked<%end if%>>Aktif&nbsp;&nbsp;&nbsp;&nbsp;
+                     <input class="blank" type="radio" name="radStatus" id="radStatus" <%if strStatus = "0" then%>checked<%end if%>>Tidak Aktif</td>					
+			</tr>
+<!--	<tr><td colspan="6" class="fontred">
+							Perhatian : <br>
+							1. Saiz fail yang hendak di muat-naik tidak boleh melebihi 2MB /<i>File size not exceeded 2MB</i> <br>
+							2. Jenis fail yang boleh dimuat-naik : PDF /<i>File type to upload :PDF</i>
+	</td></tr>-->
+	<style>
+.buttondisplay {
+  background-color: #eaeaea;
+  border: none;
+  color: black;
+/*  padding: 10px 14px;*/
+  font-size: 13px;
+  cursor: pointer;
+  borderx;
+  width:115px;
+  height:40px;
+}
+
+.buttondisplay:hover {
+  background-color: #6a6a6a;
+  color:white;
+}
+
+
+.value{
+  border-radius:4px;
+  font-size:12px;
+  border-color:lightgrey;
+
+}
+
+#totalsum{
+	border-radius:4px;
+  font-size:12px;
+  border-color:black;
+  border-width:2px;
+}
+
+
+	</style>
+	<tr><td colspan="8" class="fontred" align="center" style="font-size: 14px;">
+								<button class="buttondisplay" onClick="return Reset(1);" name="btnBaru" id="btnBaru" ><i class="fa fa-plus"></i>&nbsp;<%=lblbtnprojekbaharu %></button>
+								<button class="buttondisplay" onClick="return Simpan();" name="btnSimpan" id="btnSimpan"> <i class="fa fa-save"></i>&nbsp;<%=lblbtnsimpan %></button>
+								<button class="buttondisplay" onClick="return Hapus();" name="btnHapus" id ="btnHapus" ><i class="fa fa-remove"></i>&nbsp;<%=lblbtnhapus %></button>
+								<button class="buttondisplay" onClick="return Reset(2);" name="btnReset" id="btnReset"><i class="fa fa-repeat"></i>&nbsp;<%=lblbtnreset %></button>
+								<!--<input type="button" class="button" name="btBaru" id="btnBaru" value="Projek Baharu" onClick="return Reset(1)" style="width:100px; ">
+								<input type="button" class="button" name="btnSimpan" id="btnSimpan" value="Simpan/Save"  onClick="return Simpan()" style="width:80px; ">
+								<input type="button" class="button" name="btnHapus" id ="btnHapus" value="Hapus/Delete"  onClick="return Hapus()" style="width:80px; ">				
+								<input type="button" class="button" name="btnReset" id="btnReset" value="Reset"  onClick="return Reset(2)" />-->						
+	</td>
+    </tr>
+	
+	<tr>		
+		<td colspan="6"><strong><b>Senarai Projek</b> </strong><br>
+    	<i><font size="-2">List of Project </font></i> </td>
+	</tr>
+	<tr>
+        <td colspan="6">
+            <table width="100%" border="0" cellpadding="1" cellspacing="1" id="TableD">
+                <tr>
+                    <td width="3%" class="cheader"><b>Bil</b> <br>
+                    <i><font size="-2">Bil</font></i></td>
+                    <td width="25%" class="cheader"><b>Nama Pensyarah</b> <br>
+                    <i><font size="-2">Lecturer Name</font></i></td>
+                    <td width="5%" class="cheader"><b>Kod Projek</b> <br>
+                    <i><font size="-2">Project Code</font></i></td>	   
+                    <td width="37%" class="cheader"><b>Nama Projek</b> <br>
+                    <i><font size="-2">Project Name</font></i></td>
+                    <td width="13%" class="cheader"><b>Negara Projek</b> <br><i><font size="-2">Project Country</font></i>  </td>
+                    <td width="9%" class="cheader"><b>Peranan</b> <br><i><font size="-2">Role</font></i>  </td>
+                    <td width="6%" class="cheader"><b>Status</b> <br><i><font size="-2">Role</font></i>  </td>
+                    <td width="2%" class="cheader"><b>&nbsp;</b> <br></td>
+                </tr>
+			    <tr>
+					<td colspan="8"><div class=listbox style="height:120px">
+                  		<table width="100%" border='0' cellpadding='1' cellspacing='0' id='tableC'>
+					   	<%				
+						'---- SENARAI KETUA PROJEK	
+					 
+					 	if left(Cdb11,2) ="qa" then
+							'set rs = myDB5(staSQL1,1)  '--qa
+						else
+							set rs = dbKU(staSQL1,1) 
+						end if
+						
+							if rs.eof =false then
+								for i=1 to rs.recordcount
+							%>
+					  
+				  				<tr class="listoff" onMouseOver="this.className='liston';" onMouseOut="this.className='listoff';" Onclick="PaparInfo1('<%=i%>', 'tableC')" >
+								  <td width="3%" style="font-size:9px"><%=i%></td>
+								  <td width="25%" style="font-size:9px"><%=rs("NamaP")%></td>
+								  <td width="5%" style="font-size:9px"><%=rs("SMG14_KODPROJEK")%></td>	
+								  <td width="37%" style="font-size:9px"><%=rs("SMG14_NAMAPROJEK")%></td>
+								  <td width="13%" style="font-size:9px"><%=rs("negara")%></td>
+								  <td  width="9%"><%=rs("peranan") %></td> 
+								  <td style="display:none"><%=rs("SMG14_NOID") %></td>
+                                  <td width="5%" ><%=rs("StatusStaf") %></td>
+                                  <td width="2%">&nbsp;</td>
+								</tr>	
+							  <br />
+
+							  <
+							  
+									<%
+								rs.movenext
+								next
+							end if
+							rs.close
+					   
+						%>																							   
+				   </table>						
+				</div>
+			</td>
+			</tr>	 
+		     </table>
+			<script language="javascript">
+				function CheckNumeric() {
+
+					// Get ASCII value of key that user pressed
+    
+
+					var key = window.event.keyCode;
+					// Was key that was pressed a numeric character (0-9)?
+
+					if (key > 47 && key < 58 || key == 8) {
+						return true;
+					}
+
+					else {
+						return false;
+        
+					}
+					// discard character
+
+				}
+
+                function getSum() {
+                    var elems = document.getElementsByClassName("value");
+					
+                    var length = elems.length;
+                    var total = 0;
+                    for (var i = 0; i < length; i++) {
+                        var ele = elems[i];
+                        total += parseInt(ele.value);
+
+					}
+					document.getElementById("totalsum").value = total.toFixed(2);
+                }
+            </script>
+			<h5 ><strong style="text-decoration:underline"><%=txtFeeStrt %>&nbsp;<%=strJenisProjek%></strong></h5>
+			<table>
+				<tr>
+					<td>
+					 <label>T-JANA KOD VOT :</label>
+						<select name="cmbKodVot"  style="width=300px">
+							
+							<option>SILA PILIH/ PLEASE CHOOSE</option>
+							<%
+								'if(strKodNegara = "Malaysia") then 
+								set rs = dbKU("SELECT TJana_Butiran FROM SMG_TJana_KodVot",1)
+								while not rs.EOF 
+								response.Write("<option value=")
+								response.write(rs("TJana_Butiran"))
+								if rs("TJana_Butiran") = cmbkodvot then 
+								response.Write(" ")
+								response.write("selected")
+								end if 
+								response.write(">")
+								response.write(rs("TJana_Butiran"))
+								response.write("</option>")
+								rs.MoveNext
+								wend
+								'end if 
+							%>
+						</select>	
+					 
+					</td>
+				</tr>
+				<tr><td>&nbsp;</td></tr>
+				
+			 <tr width="100%">
+				 
+					<td width="10%">
+						<font>sem 1 :</font>
+						<input type="text" name="txtSem1" id="sem1" class="value" onkeydown="return CheckNumeric();" onkeyup="return getSum();" />&nbsp;						
+					</td>
+					<td >
+						<font>Sem 2:</font>
+						<input type="text" name="txtSem2" id="sem2" class="value" onkeydown="return CheckNumeric();" onkeyup="return getSum();" />&nbsp;				
+					</td>
+					<td>
+						<font>Sem 3:</font>
+						<input type="text" name="txtSem3" id="sem3" class="value" onkeydown="return CheckNumeric();" onkeyup="return getSum();"  />&nbsp;				
+					</td>
+					<td>
+						<font>Sem 4:</font>
+						<input type="text" name="txtSem4" id="sem4" class="value" onkeydown="return CheckNumeric();" onkeyup="return getSum();"  />&nbsp;			
+					</td>
+				 
+				 
+				</tr>
+				<tr>
+					<td>
+						<font>Sem 5:</font>
+						<input type="text" name="txtSem5" id="sem5" class="value" onkeydown="return CheckNumeric();" onkeyup="return getSum();"  />&nbsp;				
+					</td>
+					<td >
+						<font>Sem 6:</font>
+						<input type="text" name="txtSem6" id="sem6" class="value" onkeydown="return CheckNumeric();" onkeyup="return getSum();" />&nbsp;				
+					</td>
+					<td >
+						<font>Sem 7:</font>
+						<input type="text" name="txtSem7" id="sem7" class="value" onkeydown="return CheckNumeric();"onkeyup="return getSum();"  />&nbsp;				
+					</td>
+					<td >
+						<font><strong>Total :</strong></font>
+						<input type="text" name="txtTotal" id="totalsum" readonly />&nbsp;					
+					</td>
+				</tr>
+				<td></td>
+				
+			</table>
+				<tr><td td colspan="8" class="fontred" align="center" style="font-size: 14px;">
+				<button id="reset" class="buttondisplay" name="reset" onclick="reset_value()"><i class="fa fa-repeat"></i>&nbsp;<%=lblbtnreset %></button>
+				<button id="hantar" class="buttondisplay" name="hantar" onclick="reset_value()"><i class="fa fa-send"></i>&nbsp;<%=lblbtnsubmit %></button>
+				<button id="batal" class="buttondisplay" name="batal"  onclick="reset_value()"><i class="fa fa-remove"></i>&nbsp;<%=lblbtncancel %></button>
+				</td></tr>
+
+		
+		  <table class="table w3-table table-bordered table-hover dt-responsive table-striped" style="width:100%">
+			 
+									<thead style="background-color:#ffb923">
+										<tr>
+										<th style="width:20%">BUTIRAN</th>
+										<th style="width:5%">VOT</th>
+										<th style="width:5%">KW</th>
+										<th style="width:5%">SEM 1</th>
+										<th style="width:5%">SEM 2</th>
+										<th style="width:5%">SEM 3</th>
+										<th style="width:5%">SEM 4</th>
+										<th style="width:5%">SEM 5</th>
+										<th style="width:5%">SEM 6</th>
+										<th style="width:5%">SEM 7</th>
+										<th style="width:5%">JUMLAH (RM)</th>
+									</tr>
+									</thead>
+									
+								  <!--<tr>
+									  <td>Yuran Pelajaran Siswazah PHD Antarabangsa</td>
+									  <td>93451</td>
+									  <td>08</td>
+									  <td>2,244.00</td>
+									  <td>2,244.00</td>
+									  <td>2,244.00</td>
+									  <td>2,244.00</td>
+									  <td>2,244.00</td>
+									  <td>2,244.00</td> 
+									  <td>-</td>
+									  <td>13,464.00</td>
+								  </tr>
+								  <tr>
+									  <td>T-JANA</td>
+									  <td>-</td>
+									  <td>-</td>
+									  <td>7,756.00</td>
+									  <td>7,756.00</td>
+									  <td>5,856.00</td>
+									  <td>5,856.00</td>
+									  <td>5,856.00</td>
+									  <td>2,156.00</td>
+									  <td>830.00</td>
+									  <td>35,326.00</td>
+								  </tr>
+								  <tr>
+									  <td>Yuran Perkhidmatan Siswazah PHD Antarabangsa</td>
+									  <td>93652</td>
+									  <td>08</td>
+									  <td>140.00</td>
+									  <td>140.00</td>
+									  <td>140.00</td>
+									  <td>140.00</td>
+									  <td>140.00</td>
+									  <td>140.00</td>
+									  <td>140.00</td>
+									  <td>840.00</td>
+								  </tr>
+								  <tr>
+									  <td>Yuran Pendaftaran Siswazah PHD Antarabangsa</td>
+									  <td>93655</td>
+									  <td>08</td>
+									  <td>20.00</td>
+									  <td>-</td>
+									  <td>-</td>
+									  <td>-</td>
+									  <td>-</td>
+									  <td>-</td>
+									  <td>-</td>
+									  <td>20.00</td>
+								  </tr>
+								<tr>
+									  <td>Bayaran Kad Pintar Siswazah PHD Antarabangsa</td>
+									  <td>93657</td>
+									  <td>08</td>
+									  <td>50.00</td>
+									  <td>-</td>
+									  <td>-</td>
+									  <td>-</td>
+									  <td>-</td>
+									<td>-</td>
+									<td>-</td>
+									  <td>50.00</td>
+								  </tr>
+								 <tr>
+									  <td>Tabung Minggu Haluan Pascasiswazah</td>
+									  <td>92201</td>
+									  <td>08</td>
+									  <td>110.00</td>
+									  <td>-</td>
+									  <td>-</td>
+									  <td>-</td>
+									  <td>-</td>
+									 <td>-</td>
+									 <td>-</td>
+									  <td>110.00</td>
+								  </tr>
+								  <tr>
+									  <td>Tabung Alumni Pascasiswazah</td>
+									  <td>92201</td>
+									  <td>08</td>
+									  <td>100.00</td>
+									  <td>-</td>
+									  <td>-</td>
+									  <td>-</td>
+									  <td>-</td>
+									  <td>-</td>
+									  <td>-</td>
+									  <td>100.00</td>
+								  </tr>
+								 <tr>
+									  <td>Tabung Aktiviti Pascasiswazah</td>
+									  <td>92201</td>
+									  <td>08</td>
+									  <td>15.00</td>
+									  <td>15.00</td>
+									 <td>15.00</td>
+									 <td>15.00</td>
+									  <td>15.00</td>
+									  <td>15.00</td>
+									  <td>15.00</td>
+									  <td>90.00</td>
+								   </tr>
+									<tr>
+									  <td>Tabung Khairat Pascasiswazah</td>
+									  <td>92201</td>
+									  <td>08</td>
+									  <td>15.00</td>
+										<td>15.00</td>
+										<td>15.00</td>
+									  <td>15.00</td>
+									  <td>15.00</td>
+									  <td>15.00</td>
+									  <td>15.00</td>
+									  <td>90.00</td>
+								   </tr>
+									<tr>
+									  <td>Tesis & VIVA</td>
+									  <td>92201</td>
+									  <td>08</td>
+									  <td></td>
+									<td>-</td>
+									<td>-</td>
+									  <td>-</td>
+									  <td>-</td>
+									  <td>-</td>
+									  <td>-</td>
+									  <td>1500.00</td>
+								   </tr>
+									<tr style="font-weight:bolder">
+									  <td>TOTAL YURAN</td>
+									  <td></td>
+									  <td></td>
+									  <td>10,450.00</td>
+									  <td>10,170.00</td>
+									<td>8,270.00</td>
+										<td>8,270.00</td>
+										<td>8,270.00</td>
+									<td>4,570.00</td>
+									<td>1,000.00</td>
+									  <td>50,000.00</td>
+								   </tr>-->
+							</table>
+		  </td></tr>
+	
+</table>
+
+	
+	<%
+     select case msg
+    case 1
+      msg = "Muat-Naik fail telah berjaya dilakukan."
+  
+    case 2
+      msg = "Muat-Naik fail gagal. Saiz untuk kedua-dua fail melebihi 2MB"
+  
+    case 3
+      msg = "Muat-Naik fail gagal. Hanya jenis fail PDF sahaja yang dibenarkan"
+  
+    case 4
+      msg = "Rekod telah berjaya disimpan.(Record was successfully save.)"
+	 
+	 case 5
+	 msg = "Rekod telah dikemaskini (Record Successfully updated)"
+	 
+  end select
+  
+  %>
+	
+</form>
+</body>
+</html>
+
+	
+	
+  <%
+      if msg <>"" and strSubItem =""  then
+    %>
+        <script>
+            alert('<%= msg%>')
+        </script>  		
+    <%
+      end if	
+    %>  
